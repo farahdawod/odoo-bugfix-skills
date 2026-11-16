@@ -10,12 +10,15 @@ starting from the same basis should end up with different skills.
 
 ## How to use it
 
-1. Pick the stage you want a skill for (see the table).
+1. Pick the stage you want a skill for (see the table), or several stages
+   for one combined skill, for example the fix and the regression test
+   together.
 2. Open a session with your agent in this repository and say:
    "Read BUILD_YOUR_SKILL.md and build my skill from basis/<file>."
 3. Answer the interview. Bring one or two tickets you fixed recently; the
    agent will ask for them.
-4. Try the skill on a past ticket, correct it, repeat.
+4. Optionally, try the skill on a past ticket, correct it, repeat. The
+   agent asks whether you want to.
 
 Your finished skill lives wherever your agent loads skills from, not here.
 
@@ -28,8 +31,8 @@ Every basis has the same five parts, and they are not equal:
 | Facts | How Odoo behaves. True whatever your workflow is. | The repository |
 | Fixed rules | Team and Odoo policy, each with its reason. | The repository |
 | Decisions | Open questions about how you work, each with a default. | You |
-| Your material | Real tickets, commands, corrections you keep making. | You |
-| Test prompts | How to check the skill once it is built. | You |
+| Your material | Commands, corrections you keep making. Past tickets and fixes are optional. | You |
+| Test prompts | Optional. How to check the skill once it is built. | You |
 
 The agent copies the facts it needs, keeps the fixed rules, and asks you the
 decisions. The decisions are the point: a skill built without them is just a
