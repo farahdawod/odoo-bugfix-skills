@@ -42,6 +42,10 @@ Names known to differ between master and older branches:
 | tests default to `post_install` | tests default to `at_install` |
 | hoot JavaScript tests | QUnit |
 | demo data off unless requested | demo data on unless disabled |
+| `odoo.fields.Command` for x2many writes | legacy tuples `(0, 0, {...})`, `(4, id, 0)` |
+| `TransactionCase` with a `setUpClass` that is rolled back | `SavepointCase` |
+| `@odoo-module` ES modules (Owl 2) | `odoo.define(...)` (Owl 1, legacy) |
+| `env.registry.clear_cache()` | `clear_caches()` and the older `ormcache` invalidation APIs |
 
 The table says which names move, not in which version. Find the boundary on
 the branch itself.

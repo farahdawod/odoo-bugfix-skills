@@ -72,6 +72,20 @@ its section.
   that covers only read leaves write governed by the permission rows alone:
   `write` checks write access, never read, so a user can alter records the
   read restriction hides. Restrict every operation that needs it.
+- How record rules combine, on branches that use `ir.rule`. Global rules
+  (no `groups`) are combined with `AND`: every one of them applies to every
+  user. Group rules are combined with `OR` among themselves: a user gets the
+  union of what the rules of their groups allow. The result is then combined
+  with `AND` with the global rules. (On master, the same split exists
+  between restriction rows without a group and permission rows with one.)
+- Two errors a bug fix makes with that:
+  - adding a group rule to restrict users who already pass another group
+    rule. It restricts nothing: group rules only widen each other. A user in
+    both groups keeps the broader access. A restriction that must hold for
+    everyone is a global rule;
+  - forgetting `groups` on a rule meant for one role. It becomes global and
+    is applied to every user, which locks unrelated roles out of records
+    they could reach before.
 - Flag create, write or delete granted to everyone, to portal or to public.
   Look twice at read on models with personal or business-sensitive data.
 - Multi-company models need a company restriction. Sensitive models need
@@ -228,6 +242,15 @@ its section.
 
 - A `company_id` on a record is not isolation. The rule, the domain or the
   check that enforces it is, on each read and write path.
+- `check_company=True` on a relational field, enforced by
+  `_check_company()`, verifies on create and write that the linked record
+  belongs to a company compatible with the record's own. It is a consistency
+  check, not access control: it stops a record of company A from pointing at
+  a record of company B, and it does not stop anyone from reading either.
+  A fix that adds a relational field to a multi-company model, or writes one
+  under `sudo()` or from a controller, should keep that check in force and
+  not bypass it. Confirm on the branch how the model enables the automatic
+  check.
 - A cache keyed too broadly serves one user's or one company's result to
   another. Every value the result depends on (user, company, language,
   website) belongs in the key of an `ormcache`.
