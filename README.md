@@ -15,8 +15,9 @@ starting from the same basis should end up with different skills.
    together.
 2. Open a session with your agent in this repository and say:
    "Read BUILD_YOUR_SKILL.md and build my skill from basis/<file>."
-3. Answer the interview. Bring one or two tickets you fixed recently; the
-   agent will ask for them.
+   Name several files to combine them.
+3. Answer the interview. Past tickets and fixes are optional; bring some
+   only if you want the agent to learn from them.
 4. Optionally, try the skill on a past ticket, correct it, repeat. The
    agent asks whether you want to.
 

@@ -14,6 +14,16 @@ Facts that every stage relies on. Nothing here is a preference.
   is then forward-ported to the newer branches by a bot on GitHub; it is not
   re-submitted per branch. So "which branches have this bug" is part of the
   investigation, not an afterthought.
+- Reading branches that cannot be fetched: fetch before reading a branch,
+  so the code read is current. In a sandbox the fetch can fail: a remote
+  over SSH (often enterprise) is not reachable from it. Do not stop on that.
+  Read the local `origin/<branch>`, and report in the final summary that the
+  fetch failed, for which remote, and the date of the last commit on the
+  `origin/<branch>` that was read
+  (`git log -1 --format=%ci origin/<branch>`). The person can then judge
+  whether a later commit may already have changed the code. This applies to
+  every stage that reads a branch: investigation, the fix, the test, and the
+  pre-commit check.
 - The list of supported versions changes over time. A skill should read it
   from wherever the team keeps it, or ask, rather than carry a hardcoded list.
 
