@@ -101,12 +101,24 @@ the ones they did not.
   good for model logic and for switching user and company;
 - a throwaway test method run with `--test-tags`: same, with test helpers
   and `Form` to play the view;
-- RPC calls against a running server: what an integration would send.
+- RPC calls against a running server: what an integration would send;
+- the browser, against a running server: the only way to see rendering
+  and client-side logic (Owl state, browser storage, debounced saves).
 
-The agent cannot run a browser. UI cases are driven through `Form`, which
-plays the view and its onchanges. A case that can only be seen in the
-browser (rendering, client-side logic) is listed as not tried, with the
-steps for the person to check it by hand.
+Whether the agent can drive a browser depends on where it runs. An agent
+with browser tools (for example Copilot in VS Code, or one with a Playwright
+server) follows the steps on the page itself. Without browser tools, a
+throwaway `HttpCase` that runs a tour drives the headless Chrome that Odoo's
+tests use, when Chrome is installed. Elsewhere, UI cases are driven through
+`Form`, which plays the view and its onchanges.
+
+In the browser, play the steps at a human pace, and for timing-dependent
+cases once slowly and once fast. Wait for the page to settle before reading
+it: an early read shows the state before the fix took effect. Keep a
+screenshot of each browser case for the report.
+
+A case that can only be seen in the browser, when no browser can be driven,
+is listed as not tried, with the steps for the person to check it by hand.
 
 **Edge cases to choose from.** Test the edge cases of what the changed code
 touches, and only those. Go through the table, keep the dimensions the diff

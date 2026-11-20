@@ -23,15 +23,64 @@ Read first: `shared/stable-rules.md`, `shared/code-rules.md`.
 - If A offers no way for B to adjust its behaviour, the stable-safe form is
   usually a small private hook in A (a method returning a value or a domain)
   that B overrides. Adding a private method is allowed in stable; changing
-  an existing signature is not.
+  an existing signature is not. This only works when B depends on A; see
+  the next section.
 - A fix can have a half in community and a half in enterprise. The two
   halves always live on branches of the same name, one in each repository,
   and each half must be safe if the other is not yet pulled.
 
+### Module dependencies
+
+Agents get this wrong more than anything else. A fix can look right, pass
+with the modules installed in one order, and break in another. Check it for
+every fix that touches more than one module, or that is only needed when
+another module is installed.
+
+- Before writing code, read the `depends` of every module the fix touches,
+  and follow them down. The modules reached this way are the only ones the
+  code may assume are installed. A field, model, method or XML id from any
+  other module may not exist. When it does not, the result is an
+  `AttributeError`, `KeyError` or `ValueError`, and only on databases
+  without that module.
+- Two modules that `_inherit` the same model without depending on each
+  other, directly or through other modules, have no fixed order between
+  them. Their place in the MRO comes from load order, which for unrelated
+  modules follows install order. So:
+  - if both override the same method, which one runs first, and what each
+    one sees through `super()`, changes with the install order;
+  - a hook defined in A and overridden in B is reliable only if B depends
+    on A. Otherwise B cannot override it: it only defines a method with the
+    same name, and if both define it without `super()`, the module
+    installed last wins;
+  - a fix that only works in one install order is wrong. Before choosing
+    the approach, think through both orders: A then B, and B then A.
+- Adding a module to `depends` in stable is not an option: it only takes
+  effect after a module update, and it can install another app on
+  databases that never wanted it.
+- When the fix must react to a module that is not a dependency, choose the
+  first option that applies:
+  1. A bridge module that depends on both, if one already exists (look for
+     a module whose `depends` lists both, and for `auto_install`).
+  2. A hook in the module that the other one depends on, overridden in the
+     dependent module.
+  3. A guard in the module that owns the wrong assumption, which reads the
+     other module's field or model only when that module is present. Two
+     forms:
+     `'<field>' in self._fields` or `'<model>' in self.env` (checks the
+     loaded registry, so it is true exactly when the code that would use
+     it is loaded), or
+     `self.env['ir.module.module']._get('<module>').state == 'installed'`
+     (checks the module record). Prefer the registry check when the fix
+     reads a field or model; use the state check when the behaviour depends
+     on the module itself.
+  The guard keeps the fix in one module, so install order cannot affect it.
+- After the guard, the code must still behave as before when the other
+  module is absent. The guarded branch is new; the unguarded path is what
+  most databases run.
+
 ### Target branch and forward-port
 
-- The fix is written on the oldest supported branch where the bug
-  reproduces, which the investigation established.
+- The fix is written on the target branch the person gives.
 - A bot on GitHub forward-ports the merged fix to the newer versions. The
   fix is written once; it is not re-submitted per branch.
 - The forward-port conflicts where the newer branches differ from the
@@ -132,6 +181,7 @@ must be told with the fix.
 | A fix with a community half and an enterprise half uses the same branch name in both repositories. | The two halves are found, tested and merged as one change by that name. |
 | Search for an existing helper, through the four levels in this basis in order, before adding logic, and say in the final summary what was searched. | Shorter diff, consistent behaviour, and review will ask. |
 | Check overrides and consumers of everything the fix touches, in every repository on the addons path. | A break in another module shows only at runtime, or only when that module is installed. |
+| Every field, model, method and XML id the fix uses comes from the changed module or its dependencies, or is read behind a guard for the other module's presence. A fix split over two modules that do not depend on each other must work in both install orders; if it cannot be shown to, move it into one module with a guard. | For modules with no dependency between them, install order decides MRO order. A fix that relies on one order breaks on the databases that installed them the other way. |
 | Confirm on the target branch every API the fix uses. | See the version traps. |
 | New lines follow `shared/code-rules.md`; untouched lines stay as they are. | Guidelines for what you add, minimal diff for what exists. |
 | No new `sudo()`, raw SQL, public method or route without a stated reason. | Each one widens what an attacker can reach; see `basis/reference/security-for-addons.md`. |
@@ -161,7 +211,9 @@ Ask these; each has a default.
    (What stable forbids outright, such as changing a signature or adding a
    stored field, is not on this list: asking does not make it allowed.)
 6. **What do you want in the final summary, next to the diff?** *Default:* the root
-   cause in one sentence, why the fix is in that module, helpers considered,
+   cause in one sentence, why the fix is in that module, the dependencies
+   between the modules involved and how the fix handles a module that is
+   not a dependency, helpers considered,
    consumers checked, where the code differs on newer branches, whether a
    module update is needed, what the fix does not reach.
 7. **Which review comments do you get most on your fixes?** *Why:* the

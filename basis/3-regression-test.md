@@ -105,6 +105,20 @@ A new or moved test should be seen in the log at least once.
   calls or the name of a private method.
 - Build the smallest scenario that shows the bug. Reuse the records of the
   class; create only what is missing.
+- Several records, or any operation on several records, in one call: one
+  `create()` with a list of vals, one `write()` or `unlink()` on the
+  recordset. A loop of single calls is slower and gets sent back.
+- Do not change shared test data in a way that leaks into the tests that
+  run after. Database writes in a `TransactionCase` method are rolled back;
+  these are not: assignments to class attributes, mutations of shared
+  Python objects built in `setUpClass` (a vals dict, a list),
+  monkeypatching without `self.patch`, and commits in an `HttpCase`. To
+  vary a shared record, create a new one or change it inside the method.
+- When the scenario needs a module that is not a dependency of the test's
+  module (typically when the fix reads it behind a guard), the test skips
+  itself when that module is absent
+  (`self.env['ir.module.module']._get('<module>').state != 'installed'`),
+  and the run that checks it must have the module installed.
 - Do not rely on demo data being there.
 - If the bug depends on who the user is, run the scenario as that kind of
   user (`with_user`). Tests otherwise run with full rights and hide access

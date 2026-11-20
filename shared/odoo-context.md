@@ -10,10 +10,10 @@ Facts that every stage relies on. Nothing here is a preference.
   change: read, test and review them together.
 - A stable version is a released branch (`17.0`, `18.0`, intermediate
   `saas-*` branches). `master` is the development branch.
-- A bug fix targets the oldest supported branch where the bug reproduces. It
-  is then forward-ported to the newer branches by a bot on GitHub; it is not
-  re-submitted per branch. So "which branches have this bug" is part of the
-  investigation, not an afterthought.
+- A bug fix targets the branch the person gives. Nobody searches older
+  versions for the oldest one where the bug reproduces. The merged fix is
+  then forward-ported to the newer branches by a bot on GitHub; it is not
+  re-submitted per branch.
 - Reading branches that cannot be fetched: fetch before reading a branch,
   so the code read is current. In a sandbox the fetch can fail: a remote
   over SSH (often enterprise) is not reachable from it. Do not stop on that.
@@ -51,13 +51,13 @@ Names known to differ between master and older branches:
 | `_read_group` returning tuples | `read_group` returning dicts |
 | tests default to `post_install` | tests default to `at_install` |
 | hoot JavaScript tests | QUnit |
-| demo data off unless requested | demo data on unless disabled |
+| demo data off unless requested (`--with-demo`), from 19.0 | demo data on unless disabled (`--without-demo`), up to 18.0 |
 | `odoo.fields.Command` for x2many writes | legacy tuples `(0, 0, {...})`, `(4, id, 0)` |
 | `TransactionCase` with a `setUpClass` that is rolled back | `SavepointCase` |
 | `@odoo-module` ES modules (Owl 2) | `odoo.define(...)` (Owl 1, legacy) |
 | `env.registry.clear_cache()` | `clear_caches()` and the older `ormcache` invalidation APIs |
 
-The table says which names move, not in which version. Find the boundary on
+Most rows say which names move, not in which version. Find the boundary on
 the branch itself.
 
 ## How modules extend each other
@@ -67,7 +67,10 @@ shows is rarely the whole behaviour.
 
 - Models: a class with `_inherit = 'library.book'` extends the model in
   place. The method resolution order follows the module dependency graph, and
-  `super()` goes to the modules loaded earlier. Any method can be overridden
+  `super()` goes to the modules loaded earlier. Between two modules that do
+  not depend on each other the order is not fixed: it follows install
+  order, so the same code can run in a different order on two databases.
+  Any method can be overridden
   by a module that is not in the traceback, not in the diff, or not in the
   repository being read.
 - Views: an inheriting view (`inherit_id`) modifies its parent's arch. The

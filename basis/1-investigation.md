@@ -2,8 +2,8 @@
 
 A skill built from this basis takes a bug report and ends with a final
 summary: a confirmed reproduction, the module responsible, the root cause
-stated as a violated assumption, the branches affected, and optionally the
-commit that introduced the bug.
+stated as a violated assumption, and optionally the commit that introduced
+the bug.
 
 It has three steps. The third is optional by design.
 
@@ -25,13 +25,27 @@ cause, and a traceback when the bug raises one.
 - A suspected cause in the report is a lead, not a finding. Check it like
   any other theory; reports often name the place where the bug shows.
 
-**The agent cannot run a browser.** Reproduction goes through the shell, a
-throwaway test, the server-side `Form` helper (which plays a form view,
-onchanges included), or RPC calls. Steps written for the UI are translated
-into the calls the client would make: the button's method, the onchange
-sequence, the `create` or `write` with the fields the view contains. When a
-bug can only be seen in the browser (rendering, client-side logic), say so
-and ask the person to observe it.
+**Two ways to reproduce: server side and in the browser.**
+
+- *Server side.* The shell, a throwaway test, the server-side `Form` helper
+  (which plays a form view, onchanges included), or RPC calls. Steps written
+  for the UI are translated into the calls the client would make: the
+  button's method, the onchange sequence, the `create` or `write` with the
+  fields the view contains. Fast and scriptable, but it skips everything the
+  client does.
+- *In the browser.* Whether the agent can drive one depends on where it
+  runs. An agent with browser tools (for example Copilot in VS Code, or one
+  with a Playwright server) opens the page against a local server and
+  follows the steps literally. Without browser tools, a throwaway `HttpCase`
+  that runs a tour drives the headless Chrome that Odoo's tests use, when
+  Chrome is installed. Rendering and client-side logic (Owl state, browser
+  storage, debounced saves) can only be reproduced this way. Play the steps
+  at a human pace, and for a bug that "does not happen every time" once
+  slowly and once fast. Wait for the page to settle before reading it:
+  restores and RPCs are asynchronous, and an early read shows the state
+  before the bug.
+- When the bug can only be seen in the browser and no browser can be
+  driven, say so and ask the person to observe it.
 
 ### Step 1: reading a traceback
 
@@ -96,9 +110,9 @@ the client side: an Owl component, a widget, a client action or a systray
 item calls the server itself. Grep `static/src` of the module and of the
 modules that depend on it for `orm.call`, for `rpc(` (routes), and for the
 model and method names. Older branches use other client APIs, so the method
-name is the search that works on every branch. The person can supply the route and the RPC payload from
-their browser's network tab when the entry point is not clear from the
-code.
+name is the search that works on every branch. The person can supply the
+route and the RPC payload from their browser's network tab when the entry
+point is not clear from the code.
 
 ### Step 2: finding the root cause
 
@@ -106,6 +120,19 @@ code.
 there by one of: a `create` or `write`, a default, a compute, an onchange, an
 inverse, a data file, an import, or raw SQL. The symptom site reads the value;
 the root cause is the writer, or the missing writer.
+
+**An access error has no bad value.** For an `AccessError` the root cause is
+a read or a write done in the wrong environment, or a check that is right.
+Compare the model's access rights and record rules with the groups that can
+reach the flow: who may open the parent record but may not read this model.
+Then decide whether the access is legitimately denied, or the code must read
+in a narrow `sudo()` because the data it needs is not the user's to choose.
+The reader, not a writer, is then where the bug is.
+
+**A client-side bug has no server value.** When the wrong state lives in the
+browser, trace it to the code that sets, saves, restores or clears it, from
+the component's handler in `static/src` and the `patch()` of that component
+in other modules.
 
 **Look for the same bug already fixed next to the suspect code.** A class
 of bug is rarely fixed everywhere at once. Before building a theory:
@@ -215,6 +242,26 @@ environment than the backend gives it.
 - Access is granted through a token on some routes and through the session
   on others, and the two paths are not checked the same way.
 
+*Client state.* The server is right; the browser keeps or rebuilds the
+wrong state.
+
+- State persisted in the browser (`localStorage`, `sessionStorage`,
+  IndexedDB) is written in one place and cleared in another. After a
+  storage change (for example from `localStorage` to IndexedDB), one of them
+  still uses the old store.
+- A debounced or throttled save: a save still pending when the component
+  unmounts, or fired after a clear, writes stale content back; a save that
+  already ran leaves a stored copy that nothing removes. A bug that "does not
+  happen every time" often depends on the delay: reproduce once slowly and
+  once fast.
+- Mount and unmount order: `onMounted` restores, `onWillUnmount` saves. A
+  component closed through another path (a dialog callback, a toggle) skips
+  the cleanup that the normal path does.
+- Two paths that do the same job (sending from the inline composer and from
+  a full-screen dialog) with different cleanup.
+- A `patch()` in another module overrides the handler without calling
+  `super`.
+
 *Other regular suspects.*
 
 - Multi-company: a record read or created under the wrong company; a missing
@@ -238,7 +285,7 @@ environment than the backend gives it.
 
 **What it is for.** Knowing what the faulty commit was trying to do tells you
 what the fix must not undo, and where else the same mistake may have been
-made. It also tells you the oldest affected branch.
+made.
 
 **Cheap first.**
 
@@ -260,18 +307,11 @@ bug has been there since the feature was written (there is no regression to
 find); when the reproduction is manual and long; when the fix is obvious and
 does not depend on the history.
 
-**Affected branches.** Whether or not the commit is found, establish the
-oldest supported branch where the bug reproduces. That is the target of the
-fix.
-
-**Reading branches that cannot be fetched.** Fetch before reading a branch,
-so the code read is current. In a sandbox the fetch can fail: a remote over
-SSH (often enterprise) is not reachable from it. Do not stop on that. Read
-the local `origin/<branch>`, and report in the final summary that the fetch
-failed, for which remote, and the date of the last commit on the
-`origin/<branch>` that was read (`git log -1 --format=%ci origin/<branch>`).
-The person can then judge whether a later commit may already have changed
-the code.
+**Target branch.** The investigation works on the branch the person gives.
+It does not search older versions for the oldest one where the bug
+reproduces. If the target branch is not clear, ask. Read the branch as
+described in "Reading branches that cannot be fetched" in
+`shared/odoo-context.md`.
 
 ## Fixed rules
 
@@ -280,7 +320,6 @@ the code.
 | Reproduce before explaining. No root cause is stated for a bug that has not been reproduced, unless reproduction is impossible and the report says so. | An explanation that fits the traceback but was never run is a guess, and the fix built on it is a band-aid by construction. |
 | Record the module set and the branch of the reproduction. | The same steps give a different result with different modules installed. |
 | Confirm every API and attribute on the branch under investigation. | See the version traps. |
-| When a fetch fails, read the local `origin/<branch>` and report the failure and the date of its last commit. | The investigation may be based on stale code; the person must know how stale. |
 | Search overrides and consumers across every repository on the addons path, not only the one the traceback points at. | Enterprise and bridge modules override community code. |
 | State the root cause as the invariant that was violated and the code that violated it. | It is the only form the next stage can check a fix against. |
 | Do not modify code in this stage beyond temporary logging, and remove that. | Investigation that leaves changes behind contaminates the fix. |
@@ -298,12 +337,12 @@ Ask these; each has a default.
    *Default:* from the button or route to the method; from `static/src`
    when the view has no button.
 3. **When a runtime value decides the path, how is it observed?** The agent
-    reads the code only, adds temporary logging, or proposes breakpoints
-    (file, line, expressions to inspect) for you to run in your debugger and
-    report back? *Why:* people who already work under a debugger do not want
-    logging lines in their tree, and the agent cannot attach to their
-    debugger itself. *Default:* read the code; temporary logging when the
-    code alone does not settle it, removed afterwards.
+   reads the code only, adds temporary logging, or proposes breakpoints
+   (file, line, expressions to inspect) for you to run in your debugger and
+   report back? *Why:* people who already work under a debugger do not want
+   logging lines in their tree, and the agent cannot attach to their
+   debugger itself. *Default:* read the code; temporary logging when the
+   code alone does not settle it, removed afterwards.
 4. **Which root causes do you see most in your area?** Go through the missed
    root causes above: which ones are yours, what is missing? *Why:* the skill
    should check your frequent ones first. *Default:* the order given here.
@@ -312,19 +351,25 @@ Ask these; each has a default.
    more than the rest of the fix. *Default:* blame and `git log` always;
    bisect only with an automated reproduction and at most a fixed number of
    steps, otherwise skip and say so.
-6. **How do you determine the affected branches?** Read the code on each,
-   or reproduce on each? *Default:* read the code on each supported branch;
-   reproduce on the oldest one that looks affected.
-7. **What do you want in the final summary, and where should it go?** In
+6. **What do you want in the final summary, and where should it go?** In
    the conversation, as notes for the ticket, nowhere? *Default:* a short
-   summary in the conversation: reproduction,
-   module set, responsible module, root cause, affected branches, any
-   failed fetch with the date of the code read,
+   summary in the conversation: reproduction, module set, responsible
+   module, root cause, any failed fetch with the date of the code read,
    other entry points to try, introducing commit or "skipped, because".
-8. **When should it stop and ask you?** *Default:* when it cannot
-   reproduce; when the bug can only be seen in a browser; when the root
-   cause is in the framework rather than an addon; when the reported
-   behaviour looks intended.
+7. **When should it stop and ask you?** *Default:* when it cannot
+   reproduce; when the bug can only be seen in a browser and no browser can
+   be driven; when the root cause is in the framework rather than an addon;
+   when the reported behaviour looks intended.
+8. **Does the agent reproduce in the UI, and who confirms it?** Server side
+   only, in the browser itself (with its browser tools or a throwaway
+   tour), or both? Do you also confirm in your own browser before it looks
+   for the cause? *Why:* a browser run is slower and needs a running
+   server, but it is the only way to see client-side bugs and catches what
+   the translation to server calls misses; some people want to see the bug
+   with their own eyes before trusting any explanation. *Default:* server
+   side for model logic; in the browser when the bug is visible in the UI
+   and a browser can be driven, with a screenshot of the result; no
+   confirmation from you unless it could not drive a browser.
 
 ## Your material
 
