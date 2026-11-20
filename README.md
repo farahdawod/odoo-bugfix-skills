@@ -47,6 +47,7 @@ generic skill.
 | [basis/2-write-the-fix.md](basis/2-write-the-fix.md) | Smallest change in the right module, within stable rules |
 | [basis/3-regression-test.md](basis/3-regression-test.md) | Reuse or write a test, place it, tag it |
 | [basis/4-pre-commit-check.md](basis/4-pre-commit-check.md) | Rules, security, edge cases on a temporary database, tests fail without the fix |
+| [basis/5-forward-port.md](basis/5-forward-port.md) | Resolve a forward-port the bot could not complete on a newer branch |
 | [basis/reference/security-for-addons.md](basis/reference/security-for-addons.md) | Security material for addon code, used by stage 4 |
 | [shared/odoo-context.md](shared/odoo-context.md) | Repositories, branches, version traps, how modules extend each other |
 | [shared/stable-rules.md](shared/stable-rules.md) | What may and may not change in a released branch |

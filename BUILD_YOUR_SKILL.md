@@ -126,8 +126,8 @@ not ask again what they already answered.
 ## Decision map
 
 Decisions are referred to by basis and number: `I` investigation, `F` write
-the fix, `T` regression test, `P` pre-commit check. `F2` is decision 2 of
-`basis/2-write-the-fix.md`.
+the fix, `T` regression test, `P` pre-commit check, `FP` forward-port. `F2`
+is decision 2 of `basis/2-write-the-fix.md`.
 
 ### Shared decisions: ask each once, for the whole skill
 
@@ -137,10 +137,10 @@ skill, and it was not answered in an earlier build in this conversation.
 | Ask once | Collapses | Notes |
 | --- | --- | --- |
 | **Order and checkpoints.** In what order do the stages run, and where do you want to approve something before the skill continues? | T2 (test before or after the fix), F1 (plan before code), the checkpoint question under "Combining bases" | Ask first in a combined build. In a single-basis build, only F1 or T2 remains. |
-| **Environment.** How do you create a database, start Odoo, and run one test? | I1 (how you reproduce), T4 (run one test), P3 (temporary database) | Check the machine first; ask only what you could not find. |
-| **Test-run width.** How much of the suite runs before you are satisfied? | T5, P5 | When both T and P are in the skill, the new test runs in the test stage and the wider runs in the check. |
-| **Stop points.** When must the skill stop and ask, and what must it never do without asking? | I8, F5, T6 | One list for the whole skill, with the stage each item belongs to. |
-| **Final summary.** What goes in it, and where? | I7, F6 | One summary at the end of the run. The pre-commit report is fixed (in the conversation) and becomes its last part. |
+| **Environment.** How do you create a database, start Odoo, and run one test? | I1 (how you reproduce), T4 (run one test), P3 (temporary database) | Check the machine first; ask only what you could not find. A forward-port build needs this row too, for a database on the newer branch. |
+| **Test-run width.** How much of the suite runs before you are satisfied? | T5, P5, FP4 | When both T and P are in the skill, the new test runs in the test stage and the wider runs in the check. |
+| **Stop points.** When must the skill stop and ask, and what must it never do without asking? | I7, F5, T6, FP6 | One list for the whole skill, with the stage each item belongs to. |
+| **Final summary.** What goes in it, and where? | I6, F6, FP5 | One summary at the end of the run. The pre-commit report is fixed (in the conversation) and becomes its last part. |
 | **Recurring corrections.** | F7, interview rule 5 | Asked once, as interview rule 5. |
 
 ### Stage decisions: one list per stage
@@ -151,10 +151,11 @@ those.
 
 | Stage | Decisions |
 | --- | --- |
-| Investigation | I2 (where to start without a traceback), I3 (how runtime values are observed), I4 (frequent root causes), I5 (introducing commit), I6 (affected branches) |
+| Investigation | I2 (where to start without a traceback), I3 (how runtime values are observed), I4 (frequent root causes), I5 (introducing commit), I8 (UI reproduction and who confirms it) |
 | Write the fix | F2 (how small is smallest), F3 (comments), F4 (existing wrong data) |
 | Regression test | T1 (extend or add), T3 (file without an order) |
 | Pre-commit check | P1 (order of checks), P2 (what it may fix itself), P4 (edge-case budget), P6 (security depth), P7 (what blocks) |
+| Forward-port | FP1 (what it starts from), FP2 (test when the bug is already gone), FP3 (one branch or the whole chain) |
 
 When a decision is added to, removed from or renumbered in a basis, update
 this map.
